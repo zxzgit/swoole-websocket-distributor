@@ -27,6 +27,11 @@ namespace zxzgit\swd\libs;
 class ConnectHandler
 {
     /**
+     * @var string process title
+     */
+    public $processTitle = 'php-zxzgit-swd-server';
+
+    /**
      * 路由解析函数映射
      * $parseRouteMap = [
      *     'json' => function($data){
@@ -169,6 +174,8 @@ class ConnectHandler
         $this->addDefaultRouteParseFn();
 
         $this->debugAddDefaultHandler();
+
+        $this->processTitleSet($this->processTitle);
     }
 
     /**
@@ -286,5 +293,13 @@ class ConnectHandler
         is_callable($this->debugMethodHandler[$this->debugMethod])
         &&
         call_user_func($this->debugMethodHandler[$this->debugMethod], $msg);
+    }
+
+    /**
+     * set process title
+     * @param $title
+     */
+    public function processTitleSet($title){
+        cli_set_process_title($title);
     }
 }
