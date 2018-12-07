@@ -26,7 +26,6 @@ class RoomController extends BaseController {
             $redis->connect('127.0.0.1', 6379);
 
             while ($batchFdList = $redis->zRevRange($redisKey, $start, $start + ($batchNum - 1))) {
-                print_r($batchFdList);
                 //给同房间的用户发通知
                 foreach ($batchFdList as $fd) {
                     $this->frame->fd !=$fd && $this->pushMsg([

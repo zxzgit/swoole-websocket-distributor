@@ -34,7 +34,7 @@ use \zxzgit\swd\test\libs\RedisKeyDict;
                 }
 
                 echo "本批次要删除的uid：" . PHP_EOL;
-                print_r($batchDelUidKey);
+                //print_r($batchDelUidKey);
 
                 $deleteUserInfoNum = $redis->del($batchDelUidKey);//执行批量的删除用户信息
 

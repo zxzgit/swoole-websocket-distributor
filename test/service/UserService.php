@@ -31,9 +31,7 @@ class UserService extends BaseService {
                 $hashFdToUserKey  = RedisKeyDict::getHashFdToUser();
                 
                 $redisUserInfo = $redis->hGetAll($redisUserInfoKey);//获取用户信息
-                print_r($redisUserInfo);
-                print_r(PHP_EOL);
-                
+
                 if (
                     !empty($redisUserInfo) && $redisUserInfo['token']
                     &&
