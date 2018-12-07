@@ -20,9 +20,12 @@
   --MessageDistributor.php
 ```
 
-public/indexTest.php
+testapp/public/indexTest.php
 ```
-\zxzgit\swd\zxzgit\swdApp::run([
+//#`php indexTest.php` to start a websocket server
+\zxzgit\swd\zxzgit\WebSocketApp::run([
+    //'serverBind' => '0.0.0.0',//default 0.0.0.0
+    //'serverPort' => '9502',//default serverPort
     'moduleList' => [
         'test' => \testapp\test\modules\test\MessageModule::class,
     ],
@@ -50,13 +53,18 @@ public/indexTest.php
 ]);
  ```
 
-controllers/IndexController.php
+testapp/controllers/IndexController.php
 
 ```
-class IndexController extends \zxzgit\swd\libs\AbstractController {}
+class IndexController extends \zxzgit\swd\libs\AbstractController {
+    //clien send json data {"route":"index/index","data":{"key1":"value1"}} can route to this action method
+    public function actionIndex(){
+        return $this->pushMsg(['hello', 'world']);
+    }
+}
 ```
 
-MessageDistributor.php
+testapp/MessageDistributor.php
 
 ```
 class MessageDistributor extends \zxzgit\swd\libs\MessageDistributor{
@@ -66,7 +74,7 @@ class MessageDistributor extends \zxzgit\swd\libs\MessageDistributor{
 }
 ```
 
-modules/test/MessageModule.php
+testapp/modules/test/MessageModule.php
 
 ```
 class MessageModule extends \zxzgit\swd\libs\MessageModule{}
