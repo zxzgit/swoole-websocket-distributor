@@ -101,23 +101,32 @@ abstract class AbstractController {
      * 服务端向客户端发送信息 https://wiki.swoole.com/wiki/page/399.html
      * @param array $data
      * @param int $code
-     * @param null $fd
+     * @param int|null $fd
+     * @param boolean $isThrowException 是否抛出异常
      * @param int $opCode
      * @param bool $finish
-     * @return mixed
+     * @return bool
      * @throws \Exception
      */
-    public function pushMsg($data = [], $code = 200, $fd = null, $opCode = 1, $finish = true) {
+    public function pushMsg($data = [], $code = 200, $fd = null, $isThrowException = false, $opCode = 1, $finish = true) {
         $returnInfo = [
             'code' => $code,
             'data' => $data,
         ];
         $fd         = $fd ?: $this->frame->fd;
-        if ($fd) {
-            //发送成功返回true，发送失败返回false
-            return $this->distributor->connector->server->push($fd, json_encode($returnInfo), $opCode, $finish);
-        } else {
-            throw new \Exception('链接不存在');
+
+        try {
+            if ($fd) {
+                //发送成功返回true，发送失败返回false,$fd 对应链接不存在将会抛出异常
+                return $this->distributor->connector->server->push($fd, json_encode($returnInfo), $opCode, $finish);
+            } else {
+                throw new \Exception('链接不存在');
+            }
+        } catch (\Exception $exception) {
+            if ($isThrowException) {
+                throw $exception;
+            }
+            return false;
         }
     }
 }
