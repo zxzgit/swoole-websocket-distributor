@@ -61,6 +61,33 @@ class ConnectHandler
     public $isDoFork = true;
 
     /**
+     * 是否开启调试
+     * @var bool
+     */
+    public $debugOn  = false;
+
+    /**
+     * debug 输出方式
+     * @var string
+     */
+    public $debugMethod  = 'print_r';
+
+    /**
+     * debug输出方法
+     * $debugMethodHandler = [
+     *    'print_r' => function($msg){
+     *        //output msg
+     *        print_r($msg);
+     *    },
+     *    'file' => function($msg){
+     *       //do something log options
+     *    }
+     * ]
+     * @var array
+     */
+    public $debugMethodHandler  = [];
+
+    /**
      * @var array 模块设置
      * $moduleList = [
      *    'test'   => \zxzgit\swd\test\modules\test\MessageModule::class,
@@ -140,6 +167,8 @@ class ConnectHandler
         $this->setErrorHandler();
 
         $this->addDefaultRouteParseFn();
+
+        $this->debugAddDefaultHandler();
     }
 
     /**
@@ -236,5 +265,26 @@ class ConnectHandler
             $data = json_decode($data, true);
             return isset($data[$this->parseRouteDataFormatRouteProperty]) && trim($data[$this->parseRouteDataFormatRouteProperty]) ? (string)$data[$this->parseRouteDataFormatRouteProperty] : '';
         };
+    }
+
+    /**
+     * 添加默认调试处理
+     */
+    public function debugAddDefaultHandler(){
+        $this->debugMethodHandler['print_r'] = function ($msg) {
+            print_r(PHP_EOL);
+            print_r($msg);
+            print_r(PHP_EOL);
+        };
+    }
+
+    /**
+     * 输出debug信息
+     * @param string $msg
+     */
+    public function debugOutput($msg  = '-- debug empty msg --'){
+        is_callable($this->debugMethodHandler[$this->debugMethod])
+        &&
+        call_user_func($this->debugMethodHandler[$this->debugMethod], $msg);
     }
 }
