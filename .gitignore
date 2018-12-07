@@ -1,0 +1,53 @@
+# phpstorm project files
+.idea
+
+# netbeans project files
+nbproject
+
+# zend studio for eclipse project files
+.buildpath
+.project
+.settings
+
+# windows thumbnail cache
+Thumbs.db
+
+# composer vendor dir
+#直接提交目录会导致一些问题，参考: http://docs.phpcomposer.com/faqs/should-i-commit-the-dependencies-in-my-vendor-directory.html
+#/vendor
+vendor/.git
+
+# composer itself is not needed
+composer.phar
+
+# Mac DS_Store Files
+.DS_Store
+
+# phpunit itself is not needed
+phpunit.phar
+# local phpunit config
+/phpunit.xml
+
+tests/_output/*
+tests/_support/_generated
+thirdlib/alipay.trade.wap.pay/tmp/
+thirdlib/alipay.trade.wap.pay/log.txt
+web/uploads/
+web/crwlpic/
+web/crwlpic2/
+crawl/taptap/data/
+crawl/taptap/taptap/__pycache__/
+crawl/taptap/taptap/spiders/__pycache__/
+commands/updategamescore.sql
+crawl/taptap/__pycache__/
+
+crawl/postcrawl/postcrawl/__pycache__/__init__.cpython-36.pyc
+crawl/postcrawl/postcrawl/__pycache__/
+crawl/postcrawl/postcrawl/spiders/__pycache__/
+crawl/postgroup/postgroup/__pycache__/__init__.cpython-36.pyc
+crawl/postgroup/postgroup/__pycache__/
+crawl/postgroup/postgroup/spiders/__pycache__/
+crawl/maoyan/maoyan/__pycache__/
+crawl/maoyan/maoyan/spiders/__pycache__/
+
+/vendor/

@@ -1,0 +1,16 @@
+{
+    "name": "zxzgit/swoole-websocket-distributor",
+    "type": "extension",
+    "authors": [
+        {
+            "name": "zxz",
+            "email": "578226426@qq.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "zxzgit\\swd\\": ""
+        }
+    },
+    "require": {}
+}

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>swoole websocket</title>
+	<style>
+		.main {
+			width: 600px;
+			overflow: hidden;
+			border: 1px solid #d8d1d1;
+			margin: 30px auto;
+		}
+		
+		.main .chat_message_pool {
+			width: 100%;
+			height: 300px;
+			/*border: 1px solid #d8d1d1;*/
+			overflow-y: scroll;
+			border-bottom:1px solid #d8d1d1;
+		}
+		
+		.main .chat_message_pool span {
+			border: 2px solid #dae2da;
+			padding:4px;
+			display: inline-block;
+			word-wrap: break-word;
+			float: left;
+			max-width: 50%;
+			text-align: justify;
+		}
+		
+		.main .chat_message_pool .receive_message {
+			/*border: 1px solid green;*/
+			margin: 10px;
+			overflow: hidden;
+		}
+		
+		.main .chat_message_pool .send_message {
+			/*border: 1px solid green;*/
+			margin: 10px;
+			overflow: hidden;
+		}
+		
+		.main .chat_message_pool .send_message span{
+			float: right;
+			background: #b6e6b6;
+		}
+		
+		.main .input_text_area {
+			width: 98%;
+			height: 100px;
+			border: 1px solid #dae2da;
+			display: block;
+			margin:5px auto;
+		}
+		
+		.main .send_btn{
+			display: block;
+			width: 50%;
+			margin: 5px auto;
+			text-align: center;
+			background: #4862e4;
+			color: white;
+			padding: 5px;
+		}
+	</style>
+</head>
+<body>
+
+<div class="main">
+	<div id="jsTip" style="text-align: center;">提示</div>
+	<!--聊天记录展示-->
+	<div class="chat_message_pool" id="jsChantMessagePool">
+		<div class="receive_message">
+			<span>12345</span>
+		</div>
+		<div class="send_message">
+			<span>6789</span>
+		</div>
+	
+	</div>
+	
+	<div class="chat_input_wrap">
+		
+		<div>
+			<textarea class="input_text_area" name="" id="jsMessageInput"></textarea>
+		</div>
+		
+		<div>
+			<a href="javascript:void(0);" id="jsSendMsgBtn" class="send_btn">发布</a>
+		</div>
+	
+	</div>
+
+</div>
+
+
+<script>
+	(function () {
+		var ChatTool = function (roomId) {
+			this.webSocket = null;
+			this.roomId    = roomId;
+			
+			if(!this.roomId || isNaN(this.roomId)){
+			    return alert('房间号不正确')
+			}
+			
+			this._init();
+		};
+		
+		ChatTool.prototype = {
+			_init            : function () {
+				if (!this._webSocketInit()) {
+					//todo 提示不支持webSocket
+					return false;
+				}
+				
+				this._bindDomEvents();
+			},
+			_webSocketOpenDo : function () {
+                if (this.webSocket) {
+					//发送进入房间
+					var messageDataInfo = 0 ? {
+                        route    : 'event/interRoom',
+						data     : {
+                            uid      : this.userInfo.uid,
+                            name     : this.userInfo.name,
+                            token    : this.userInfo.token,
+                            roomId   : this.roomId,//给房间时，要传递房间号
+						},
+					} : {
+                        route    : 'user/checkLogin',
+                        data     : {
+                            uid      : this.userInfo.uid,
+                            name     : this.userInfo.name,
+                            token    : this.userInfo.token,
+                        },
+                    };
+					this.sendMessage(messageDataInfo);
+                    
+					//进入房间事件
+                    this.sendMessage({
+                        route    : 'room/interRoom',
+                        data     : {
+                            uid      : this.userInfo.uid,
+                            name     : this.userInfo.name,
+                            token    : this.userInfo.token,
+                            roomId   : this.roomId,//给房间时，要传递房间号
+                        },
+                    });
+				}
+			},
+			reconnectInterval : null,
+			doReconnect : function(){
+		        var that = this;
+                that.reconnectInterval == null && (that.reconnectInterval =  setInterval(function(){
+                    that.showTip('重新链接中...');
+                    if(that.webSocket.readyState == WebSocket.OPEN){
+                        that.showTip('提示');
+                        clearInterval(that.reconnectInterval);
+                        return that.reconnectInterval = null;
+					}
+    
+                    that.webSocket.close();
+                    that._webSocketInit();
+                },2000));
+			},
+            _webSocketCloseDo:function(){
+                console.log('关闭了websocket');
+                this.doReconnect();
+			},
+			_webSocketInit   : function () {
+				if (window.WebSocket) {
+				    try{
+                        this.webSocket = new WebSocket('ws://192.168.139.128:9502/');
+                        this._bindSocketEvents();
+					}catch (e) {
+                        this.webSocket.close();
+						console.error(e);
+                    }
+					return true;
+				}
+				return false;
+			},
+			_bindSocketEvents: function () {
+				var that              = this;
+				that.webSocket.onopen = function () {//初次链接
+                    console.log('链接上了');
+                    that._webSocketOpenDo();
+				};
+				
+				that.webSocket.onmessage = that.messageHandler();
+				
+				that.webSocket.onerror = function () {
+					console.log('websocket 链接发生了错误');
+                    //that.webSocket.close();
+				};
+				
+				that.webSocket.onclose = function () {
+                    that._webSocketCloseDo();
+				};
+			},
+			_bindDomEvents   : function () {
+				var that                                        = this;
+				var messageInputDom                             = document.getElementById('jsMessageInput');
+				document.getElementById('jsSendMsgBtn').onclick = function () {
+					var messageDataInfo = {
+                        route: 'test/subtest/text/forRoom',
+                        data : {
+                            content: messageInputDom.value,
+                            uid    : that.userInfo.uid,
+                            name   : that.userInfo.name,
+                            token  : that.userInfo.token,
+                            roomId : that.roomId//给房间时，要传递房间号
+                        }
+					};
+					that.sendMessage(messageDataInfo);
+					that.addMsgPop('send_message', {msg: messageInputDom.value, fromUser: ''});
+					
+					//清空输入数据
+					messageInputDom.value = '';
+				};
+				
+				//
+                document.title = '房间' + that.roomId;
+			},
+			messageHandler   : function () {
+				var that = this;
+				return function (e) {
+					var receivedMsg = e.data;
+					var dataInfo    = eval('(' + receivedMsg + ')');
+					console.log("数据已接收...,数据为：", dataInfo);
+					//console.log(e);
+					if (dataInfo.code == 200) {
+						that.addMsgPop('receive_message', dataInfo.data);
+					}
+				}
+			},
+			addMsgPop        : function (type, dataInfo) {
+			    console.log('输出数据',dataInfo);
+				var msg             = dataInfo.msg;
+				var fromUser        = dataInfo.fromUser;
+				var sayWord         = fromUser ? '说：' : '';
+				//展示消息
+				var newMsgDom       = document.createElement('div');
+				newMsgDom.className = type;
+				newMsgDom.innerHTML = "<span>" + fromUser + sayWord + msg + "</span>";
+				var msgPoolDom      = document.getElementById('jsChantMessagePool');
+				msgPoolDom.appendChild(newMsgDom);
+				msgPoolDom.scrollTop = msgPoolDom.scrollHeight;//滚动到底部
+			},
+			sendMessage      : function (messageDataInfo) {
+				this.webSocket.send(JSON.stringify(messageDataInfo));
+			},
+			userInfo         : {
+				uid   : Date.now(),
+				name  : '用户' + Date.now(),
+				token : 'token_' + Math.random(),
+			},
+            messageList: {},
+            showTip: function (msg) {
+                return document.getElementById('jsTip').innerHTML = msg;
+            }
+		};
+        
+        ChatTool.getQueryString = function (name) {
+            var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)", "i");
+            var r   = window.location.search.substr(1).match(reg);
+            if (r != null) return unescape(r[2]);
+            return null;
+        };
+		
+		chatTool = new ChatTool(ChatTool.getQueryString('room'));
+	})();
+</script>
+
+</body>
+</html>
