@@ -4,13 +4,14 @@
  * User: zxz
  * Datetime: 2018/11/15 18:03
  *
-    \zxzgit\swd\zxzgit\swdApp::run([
+    \zxzgit\swd\WebSocketApp::run([
         'moduleList' => [
             'test' => \zxzgit\swd\test\modules\test\MessageModule::class,
          ],
         'messageDistributor' => \zxzgit\swd\test\MessageDistributor::class,
         'event' => [
                 'initConnector' => function () {},
+                'start'         => function (&$server) {},
                 'workerStart'   => function (&$server, $id) {},
                 'open'          => function (&$server, &$req) {},
                 'beforeMessage' => function (&$server, &$frame) {},
@@ -122,6 +123,7 @@ class ConnectHandler
      * $event = [
      *    'initConnector' => function(&$connector){},
      *     \/** server 事件 **\/
+     *    'start'         => function(&$server){},
      *    'workerStart'   => function(&$server, $id){},
      *    'open'          => function(&$server, &$req){},
      *    'beforeMessage' => function(&$server, &$frame){},
@@ -143,6 +145,12 @@ class ConnectHandler
      * @var int
      */
     public $serverPort = 9502;
+
+
+    /**
+     * @var array swoole server::set() 配置 https://wiki.swoole.com/wiki/page/13.html
+     */
+    public $serverSetConfig = [];
 
     /**
      * @var \swoole_websocket_server $server
@@ -207,6 +215,8 @@ class ConnectHandler
      */
     public function run()
     {
+        $this->runConnectHandlerOutputInfo();
+
         $this->initServer();
 
         $this->triggerEvent('initConnector', [&$this]);
@@ -221,22 +231,36 @@ class ConnectHandler
     {
         $this->server = new \swoole_websocket_server($this->serverBind, $this->serverPort);
 
+        //设置server运行时的各项参数
+        $this->server->set($this->serverSetConfig);
+
         //事件设置
-        $this->server->on('workerstart', function ($server, $id) {
-            $this->triggerEvent('workerStart', [&$server, $id]);
+        $this->server->on('start', function (&$server) {
+            $this->triggerEvent('start', [&$server]);
             $server->connector = &$this;
+
+            //启动信息提示
+            $this->debugConsoleOutput('server start success.');
+            $this->debugConsoleOutput('server setting info:' );
+            $this->debugConsoleOutput(json_encode($server->setting, JSON_PRETTY_PRINT));
+
+            return true;
         });
 
-        $this->server->on('open', function ($server, $req) {
+        $this->server->on('workerstart', function (&$server, $id) {
+            $this->triggerEvent('workerStart', [&$server, $id]);
+        });
+
+        $this->server->on('open', function (&$server, $req) {
             $this->triggerEvent('open', [&$server, &$req]);
         });
 
-        $this->server->on('message', function ($server, $frame) {
+        $this->server->on('message', function (&$server, $frame) {
             $this->triggerEvent('beforeMessage', [&$server, &$frame]);
             MessageHandler::msgDeal($this, $frame, $this->isDoFork);
         });
 
-        $this->server->on('close', function ($server, $fd) {
+        $this->server->on('close', function (&$server, $fd) {
             $this->triggerEvent('close', [&$server, $fd]);
         });
 
@@ -296,10 +320,28 @@ class ConnectHandler
     }
 
     /**
+     * 控制台提示信息输出
+     * @param $msg
+     */
+    public function debugConsoleOutput($msg)
+    {
+        call_user_func($this->debugMethodHandler['print_r'], $msg);
+    }
+
+    /**
      * set process title
      * @param $title
      */
     public function processTitleSet($title){
         cli_set_process_title($title);
+    }
+
+    /**
+     * connect启动信息输出提示
+     */
+    protected function runConnectHandlerOutputInfo()
+    {
+        $this->debugConsoleOutput('process-pid   : ' . posix_getpid());
+        $this->debugConsoleOutput('process-title : ' . $this->processTitle);
     }
 }
