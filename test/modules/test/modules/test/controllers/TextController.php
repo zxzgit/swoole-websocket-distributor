@@ -10,8 +10,8 @@ namespace zxzgit\swd\test\modules\test\modules\test\controllers;
 use zxzgit\swd\test\controllers\BaseController;
 
 class TextController extends BaseController {
-    
-    public function run() {
+    public $authActionList = ['forRoom'];
+    public function actionForRoom() {
         return $this->pushMsg(["sub-modules/admin/controllers/TextController result", "world"]);
     }
 }

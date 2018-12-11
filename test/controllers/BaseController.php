@@ -11,48 +11,46 @@ use zxzgit\swd\test\MessageDistributor;
 use zxzgit\swd\test\service\UserService;
 
 class BaseController extends \zxzgit\swd\libs\AbstractController {
-    const RETURN_CODE = [
-        200 => 'Success',
-        403 => 'Forbidden',
-    ];
-    
-    /**
-     * @var MessageDistributor $distributor
-     */
-    public    $distributor;
-    public    $frame;
-    public    $distributorData;
-    public    $action;
-    public    $data        = [];
+    public $authActionList = [];
+
     protected $isLoginUser = null;
     protected $user        = false;
-    
-    
-    function __construct(&$distributor, $frame, $distributorData, $config = []) {
-        $this->distributor     = &$distributor;
-        $this->frame           = $frame;
-        $this->distributorData = $distributorData;
-        $this->init($config);
+
+    protected function beforeAction()
+    {
+        if (in_array($this->action, $this->authActionList)) {
+            if (!$this->checkUserLogin()) {//未登陆
+                $returnData = [
+                    'preRequestInfo' => $this->parsedMsgData,
+                    'type' => 'noLogin',
+                ];
+                $this->pushMsg($returnData, 403);
+                return false;
+            }
+
+            if ($this->isTokenExpire()) {//token过期
+                $returnData = [
+                    'preRequestInfo' => $this->parsedMsgData,
+                    'type' => 'refreshToken',
+                ];
+                $this->pushMsg($returnData, 403);
+                return false;
+            }
+
+        }
+        return parent::beforeAction();
     }
-    
-    /**
-     * @return array
-     */
-    public function run() {
-        $eventType = 'action' . ucfirst($this->action);
-        
-        return $this->$eventType();
-    }
-    
+
     /**
      * 检查用户是否处于登录
+     * @param bool $isCheckTokenExpire 是否检车token过期
      * @return bool
      */
     public function checkUserLogin() {
         if ($this->isLoginUser === null) {
             $this->isLoginUser = !is_null($this->getUser());
         }
-        
+
         return $this->isLoginUser;
     }
     
@@ -62,9 +60,21 @@ class BaseController extends \zxzgit\swd\libs\AbstractController {
      */
     public function getUser() {
         if ($this->user === false) {
-            $this->user = UserService::getLoginUser($this->frame->fd, $this->data);
+            $this->user = UserService::getLoginUser($this->frame->fd, $this->parsedMsgData['auth']);
         }
         
         return $this->user;
+    }
+
+    /**
+     * token是否过期，需要重新刷新
+     * @return bool
+     */
+    public function isTokenExpire(){
+        if(!isset($this->getUser()['tokenExpireTime']) || $this->getUser()['tokenExpireTime'] < time()){
+            return true;
+        }
+
+        return false;
     }
 }

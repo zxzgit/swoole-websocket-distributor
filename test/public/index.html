@@ -97,180 +97,228 @@
 
 <script>
 	(function () {
-		var ChatTool = function (roomId) {
-			this.webSocket = null;
-			this.roomId    = roomId;
-			
-			if(!this.roomId || isNaN(this.roomId)){
-			    return alert('房间号不正确')
-			}
-			
-			this._init();
-		};
-		
-		ChatTool.prototype = {
-			_init            : function () {
-				if (!this._webSocketInit()) {
-					//todo 提示不支持webSocket
-					return false;
-				}
-				
-				this._bindDomEvents();
-			},
-			_webSocketOpenDo : function () {
-                if (this.webSocket) {
-					//发送进入房间
-					var messageDataInfo = 0 ? {
-                        route    : 'event/interRoom',
-						data     : {
-                            uid      : this.userInfo.uid,
-                            name     : this.userInfo.name,
-                            token    : this.userInfo.token,
-                            roomId   : this.roomId,//给房间时，要传递房间号
-						},
-					} : {
-                        route    : 'user/checkLogin',
-                        data     : {
-                            uid      : this.userInfo.uid,
-                            name     : this.userInfo.name,
-                            token    : this.userInfo.token,
-                        },
-                    };
-					this.sendMessage(messageDataInfo);
-                    
-					//进入房间事件
-                    this.sendMessage({
-                        route    : 'room/interRoom',
-                        data     : {
-                            uid      : this.userInfo.uid,
-                            name     : this.userInfo.name,
-                            token    : this.userInfo.token,
-                            roomId   : this.roomId,//给房间时，要传递房间号
-                        },
-                    });
-				}
-			},
-			reconnectInterval : null,
-			doReconnect : function(){
-		        var that = this;
-                that.reconnectInterval == null && (that.reconnectInterval =  setInterval(function(){
-                    that.showTip('重新链接中...');
-                    if(that.webSocket.readyState == WebSocket.OPEN){
-                        that.showTip('提示');
-                        clearInterval(that.reconnectInterval);
-                        return that.reconnectInterval = null;
-					}
-    
-                    that.webSocket.close();
-                    that._webSocketInit();
-                },2000));
-			},
-            _webSocketCloseDo:function(){
-                console.log('关闭了websocket');
-                this.doReconnect();
-			},
-			_webSocketInit   : function () {
-				if (window.WebSocket) {
-				    try{
-                        this.webSocket = new WebSocket('ws://192.168.139.128:9502/');
-                        this._bindSocketEvents();
-					}catch (e) {
-                        this.webSocket.close();
-						console.error(e);
+	    var getWebsockHandler = function(webSocketDomain,msgHandler){
+            return ({
+                msgHandler: msgHandler,
+                webSocket: null,
+                webSocketDomain: null,
+                init:function(webSocketDomain){
+                    this.webSocketDomain = webSocketDomain;
+                    if(!this.initCheck()){
+                        return;
                     }
-					return true;
+                    this._webSocketInit();
+
+                    return this;
+                },
+                initCheck:function(){
+                    return true;
+                },
+                _webSocketInit   : function () {
+                    if (window.WebSocket) {
+                        try{
+                            this.webSocket = new WebSocket(this.webSocketDomain);
+                            this._bindSocketEvents();
+                        }catch (e) {
+                            this.webSocket.close();
+                            console.error(e);
+                        }
+                        return true;
+                    }
+                    return false;
+                },
+                _bindSocketEvents: function () {
+                    var that              = this;
+                    that.webSocket.onopen = function () {//初次链接
+                        console.log('链接上了');
+                        that._webSocketOpenDo();
+                    };
+
+                    that.webSocket.onmessage = that.messageHandler();
+
+                    that.webSocket.onerror = function () {
+                        console.log('websocket 链接发生了错误');
+                        //that.webSocket.close();
+                    };
+
+                    that.webSocket.onclose = function () {
+                        that._webSocketCloseDo();
+                    };
+                },
+                _webSocketOpenDo : function () {
+                    this.msgHandler.checkUserLogin();//重新校验登陆的状态
+                },
+                reconnectInterval : null,
+                doReconnect : function(){
+                    var that = this;
+                    that.reconnectInterval == null && (that.reconnectInterval =  setInterval(function(){
+                        that.showTip('重新链接中...');
+                        if(that.webSocket.readyState == WebSocket.OPEN){
+                            that.showTip('提示');
+                            clearInterval(that.reconnectInterval);
+                            return that.reconnectInterval = null;
+                        }
+
+                        that.webSocket.close();
+                        that._webSocketInit();
+                    },2000));
+                },
+                _webSocketCloseDo:function(){
+                    this.msgHandler.userInfo.isLogin = false;//退出用户登陆
+                    console.log('关闭了websocket');
+                    this.doReconnect();
+                },
+                sendMessage      : function (route,data,rpData) {
+                    try{
+                        if(this.checkWebsockeState()){
+                            this.webSocket.send(JSON.stringify({
+                                route: route,
+                                auth: {token: this.msgHandler.userInfo.token, uid: this.msgHandler.userInfo.uid},
+                                data: data,
+                                rpData: rpData//服务端原样返回的参数
+                            }));
+                            return true;
+                        }
+					}catch (e) {
+                        console.log('发送失败',e);
+                    }
+                    alert('发送失败,请重试！');
+                    return false;
+                },
+                messageHandler   : function () {
+                    var that = this;
+                    return function (e) {
+                        var receivedMsg = e.data;
+                        var dataInfo    = eval('(' + receivedMsg + ')');
+                        console.log("数据已接收...,数据为：", dataInfo);
+
+                        //对应事件处理
+                        that.msgHandler.eventDeal(dataInfo);
+                    }
+                },
+                showTip: function (msg) {
+                    return document.getElementById('jsTip').innerHTML = msg;
+                },
+				checkWebsockeState:function(){
+                    return this.webSocket.readyState == WebSocket.OPEN;
 				}
-				return false;
-			},
-			_bindSocketEvents: function () {
-				var that              = this;
-				that.webSocket.onopen = function () {//初次链接
-                    console.log('链接上了');
-                    that._webSocketOpenDo();
-				};
-				
-				that.webSocket.onmessage = that.messageHandler();
-				
-				that.webSocket.onerror = function () {
-					console.log('websocket 链接发生了错误');
-                    //that.webSocket.close();
-				};
-				
-				that.webSocket.onclose = function () {
-                    that._webSocketCloseDo();
-				};
+            }).init(webSocketDomain);
+        };
+
+
+		var msgHandler = ({
+		    webSocketHandler : null,
+		    msgEvent : null,
+            roomId    : null,
+			init            : function () {
+		        this.roomId = this.getQueryString('room');
+		        if(!this.checkCondition()){
+		            return;
+				}
+				this._bindDomEvents();
+
+                this.webSocketHandler = getWebsockHandler('ws://192.168.139.128:9502/',this);
+            },
+            checkCondition:function(){
+		        //房间号检测
+				this.roomId = this.getQueryString('room');
+                if(!this.roomId || isNaN(this.roomId)){
+                    alert('房间号不正确');
+                    return false;
+                }
+
+                return true;
 			},
 			_bindDomEvents   : function () {
 				var that                                        = this;
 				var messageInputDom                             = document.getElementById('jsMessageInput');
 				document.getElementById('jsSendMsgBtn').onclick = function () {
-					var messageDataInfo = {
-                        route: 'test/subtest/text/forRoom',
-                        data : {
+				    if(messageInputDom.value){
+                        var messageDataInfo = {
                             content: messageInputDom.value,
                             uid    : that.userInfo.uid,
                             name   : that.userInfo.name,
                             token  : that.userInfo.token,
                             roomId : that.roomId//给房间时，要传递房间号
-                        }
-					};
-					that.sendMessage(messageDataInfo);
-					that.addMsgPop('send_message', {msg: messageInputDom.value, fromUser: ''});
-					
-					//清空输入数据
-					messageInputDom.value = '';
+                        };
+                        sendResult = that.webSocketHandler.sendMessage('test/subtest/text/forRoom', messageDataInfo, {event: 'sendChatMsg'});
+                        sendResult && that.addMsgPop('send_message', {msg: messageInputDom.value, fromUser: ''});
+
+                        //清空输入数据
+                        messageInputDom.value = sendResult ? '' : messageInputDom.value;
+					}
 				};
 				
 				//
                 document.title = '房间' + that.roomId;
-			},
-			messageHandler   : function () {
-				var that = this;
-				return function (e) {
-					var receivedMsg = e.data;
-					var dataInfo    = eval('(' + receivedMsg + ')');
-					console.log("数据已接收...,数据为：", dataInfo);
-					//console.log(e);
-					if (dataInfo.code == 200) {
-						that.addMsgPop('receive_message', dataInfo.data);
-					}
-				}
-			},
-			addMsgPop        : function (type, dataInfo) {
-			    console.log('输出数据',dataInfo);
-				var msg             = dataInfo.msg;
-				var fromUser        = dataInfo.fromUser;
-				var sayWord         = fromUser ? '说：' : '';
-				//展示消息
-				var newMsgDom       = document.createElement('div');
-				newMsgDom.className = type;
-				newMsgDom.innerHTML = "<span>" + fromUser + sayWord + msg + "</span>";
-				var msgPoolDom      = document.getElementById('jsChantMessagePool');
-				msgPoolDom.appendChild(newMsgDom);
-				msgPoolDom.scrollTop = msgPoolDom.scrollHeight;//滚动到底部
-			},
-			sendMessage      : function (messageDataInfo) {
-				this.webSocket.send(JSON.stringify(messageDataInfo));
+
 			},
 			userInfo         : {
-				uid   : Date.now(),
+				uid   : 1,
 				name  : '用户' + Date.now(),
-				token : 'token_' + Math.random(),
+				token : 'token_0.5623913076999942',
+				isLogin: false,
 			},
-            messageList: {},
-            showTip: function (msg) {
-                return document.getElementById('jsTip').innerHTML = msg;
-            }
-		};
-        
-        ChatTool.getQueryString = function (name) {
-            var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)", "i");
-            var r   = window.location.search.substr(1).match(reg);
-            if (r != null) return unescape(r[2]);
-            return null;
-        };
-		
-		chatTool = new ChatTool(ChatTool.getQueryString('room'));
+            getQueryString:function (name) {
+                var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)", "i");
+                var r   = window.location.search.substr(1).match(reg);
+                if (r != null) return unescape(r[2]);
+                return null;
+            },
+            eventDeal:function(responData){
+		        //todo 检查token是否过期，如果过期先重新获取token,获取后重新执行上一步操作
+				if(responData.code == 403 && responData.data.type == 'refreshToken'){//todo need refresh token
+				    return this.refreshToken(responData);
+				}else if(responData.code == 403){
+				    //todo need login
+					return;
+				}
+                var event = responData['rpData'] && responData['rpData']['event'] ? responData['rpData']['event'] : '';
+                event && this.dealEventList[event](responData, this);
+			},
+            addMsgPop        : function (type, dataInfo) {
+                console.log('输出数据',dataInfo);
+                var msg             = dataInfo.msg;
+                var fromUser        = dataInfo.fromUser;
+                var sayWord         = fromUser ? '说：' : '';
+                //展示消息
+                var newMsgDom       = document.createElement('div');
+                newMsgDom.className = type;
+                newMsgDom.innerHTML = "<span>" + fromUser + sayWord + msg + "</span>";
+                var msgPoolDom      = document.getElementById('jsChantMessagePool');
+                msgPoolDom.appendChild(newMsgDom);
+                msgPoolDom.scrollTop = msgPoolDom.scrollHeight;//滚动到底部
+            },
+			checkUserLogin : function(){
+                this.userInfo.isLogin = false;
+                this.webSocketHandler.sendMessage('user/checkLogin', {}, {event: 'checkLogin'});
+            },
+			refreshToken:function(result){
+                //上一个请求的请求信息，用户刷新token后重新执行
+                this.webSocketHandler.sendMessage('user/refreshToken', {}, {event: 'refreshToken',preRequestInfo : result.data.preRequestInfo});
+            },
+            dealEventList: {
+		        refreshToken:function(result, msgHandler){
+		            if(result.code == 200){
+                        msgHandler.userInfo.token = result.data.token;//刷新本地token
+						//重新发送前一条信息
+						var preRequestInfo = result.rpData.preRequestInfo;
+                        msgHandler.webSocketHandler.sendMessage(preRequestInfo.route, preRequestInfo.data, preRequestInfo.rpData);
+                    }
+				},
+                checkLogin: function (result, msgHandler) {
+                    if (result.code == 200 && result.data.isLogin) {
+                        msgHandler.userInfo.isLogin = true;
+                    } else {
+                        msgHandler.userInfo.isLogin = false;
+                    }
+                },
+                sendChatMsg: function (result, msgHandler) {
+                    console.log('sendChatMsg', '处理', result.data);
+                    msgHandler.addMsgPop('receive_message', result.data);
+                }
+            },
+		}).init();
 	})();
 </script>
 

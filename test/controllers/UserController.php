@@ -23,4 +23,20 @@ class UserController extends BaseController {
     public function actionCheckLogin() {
         return $this->pushMsg(['isLogin' => $this->checkUserLogin()]);
     }
+
+    /**
+     * 刷新token操作
+     */
+    public function actionRefreshToken(){
+        if (!$this->checkUserLogin()) {
+            return $this->pushMsg(['type' => 'noLogin'], 403);
+        }
+
+        //刷新token
+        if (UserService::refreshToken($this->user)) {
+            return $this->pushMsg($this->user, 200);
+        } else {
+            return $this->pushMsg([], 500);
+        }
+    }
 }

@@ -20,7 +20,7 @@ class RedisKeyDict {
      * @return string
      */
     static function getHashUserInfoKey($uid) {
-        return self::getFormat("user:$uid");
+        return self::getFormat("user:session:$uid");
     }
     
     /**
@@ -37,5 +37,13 @@ class RedisKeyDict {
      */
     static function getHashRoomFdList($roomId) {
         return self::getFormat("room:fdList:$roomId");
+    }
+
+    /**
+     * 用户信息存储表，懒的使用数据库
+     * @return string
+     */
+    static function getUserTableHash(){
+        return self::getFormat("table:user");
     }
 }
