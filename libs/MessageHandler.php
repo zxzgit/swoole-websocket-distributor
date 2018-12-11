@@ -58,7 +58,8 @@ class MessageHandler
             //发送信息后事件处理
             $connector->triggerEvent('afterMessage', [&$connector->server, &$frame]);
         } catch (\Exception $exception) {
-            $connector->debugOutput("信息分发错误，错误信息：" . $exception->getMessage() . PHP_EOL);
+            throw  $exception;
+            //$connector->debugOutput("信息分发错误，错误信息：" . $exception->getMessage() . PHP_EOL);
         }
     }
 }

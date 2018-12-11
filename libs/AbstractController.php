@@ -137,6 +137,15 @@ abstract class AbstractController {
     }
 
     /**
+     * 判断WebSocket客户端是否存在，并且状态为Active状态
+     * @param int $fd
+     * @return mixed
+     */
+    protected function isExistFd($fd){
+        return $this->distributor->connector->server->exist($fd);
+    }
+
+    /**
      * @return bool
      */
     protected function beforeAction(){
