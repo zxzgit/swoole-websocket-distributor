@@ -93,8 +93,13 @@ abstract class AbstractController {
      */
     public function run() {
         $eventType = 'action' . ucfirst($this->action);
-        
-        return $this->$eventType();
+
+        if(!$this->beforeAction()){
+            return false;
+        }
+        $this->$eventType();
+
+        $this->afterAction();
     }
 
     /**
@@ -112,6 +117,7 @@ abstract class AbstractController {
         $returnInfo = [
             'code' => $code,
             'data' => $data,
+            'rpData' => isset($this->parsedMsgData['rpData']) ? $this->parsedMsgData['rpData'] : [],
         ];
         $fd         = $fd ?: $this->frame->fd;
 
@@ -128,5 +134,19 @@ abstract class AbstractController {
             }
             return false;
         }
+    }
+
+    /**
+     * @return bool
+     */
+    protected function beforeAction(){
+        return true;
+    }
+
+    /**
+     * @return bool
+     */
+    protected function afterAction(){
+        return true;
     }
 }
