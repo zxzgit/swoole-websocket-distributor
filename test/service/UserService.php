@@ -44,7 +44,7 @@ class UserService extends BaseService {
 
                     $hasAuth = true;
                 } else {
-                    //todo 验证用户是否登录
+                    //验证用户是否登录
                     if (
                         isset($authData['token']) && $authData['uid']
                         &&
@@ -103,7 +103,7 @@ class UserService extends BaseService {
             'token' => $userInfo['token'],
             'name'  => $userInfo['name'],
             'fd'    => $fd,
-            //todo 其他信息
+            //其他信息
             'tokenExpireTime' => $userInfo['token_expire'],//token 需要重新刷新的时间
         ];
 
