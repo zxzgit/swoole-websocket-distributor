@@ -107,17 +107,20 @@ abstract class AbstractController {
      * @param array $data
      * @param int $code
      * @param int|null $fd
+     * @param array $rpData
+     * @param string $msg
      * @param boolean $isThrowException 是否抛出异常
      * @param int $opCode
      * @param bool $finish
      * @return bool
      * @throws \Exception
      */
-    public function pushMsg($data = [], $code = 200, $fd = null, $isThrowException = false, $opCode = 1, $finish = true) {
+    public function pushMsg($data = [], $code = 200, $fd = null, $msg = '', $rpData = [], $isThrowException = false, $opCode = 1, $finish = true) {
         $returnInfo = [
             'code' => $code,
             'data' => $data,
-            'rpData' => isset($this->parsedMsgData['rpData']) ? $this->parsedMsgData['rpData'] : [],
+            'msg'  => $msg,
+            'rpData' => $rpData + (isset($this->parsedMsgData['rpData']) ? $this->parsedMsgData['rpData'] : []),
         ];
         $fd         = $fd ?: $this->frame->fd;
 
