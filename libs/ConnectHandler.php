@@ -64,7 +64,7 @@ class ConnectHandler
     /**
      * @var bool 是否开启生成子线程处理，开启后控制器代码修改可直接生效
      */
-    public $isDoFork = true;
+    public $isDoFork = false;
 
     /**
      * 是否开启调试
