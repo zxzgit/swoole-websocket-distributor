@@ -10,7 +10,7 @@
 			border: 1px solid #d8d1d1;
 			margin: 30px auto;
 		}
-		
+
 		.main .chat_message_pool {
 			width: 100%;
 			height: 300px;
@@ -18,7 +18,7 @@
 			overflow-y: scroll;
 			border-bottom:1px solid #d8d1d1;
 		}
-		
+
 		.main .chat_message_pool span {
 			border: 2px solid #dae2da;
 			padding:4px;
@@ -28,24 +28,24 @@
 			max-width: 50%;
 			text-align: justify;
 		}
-		
+
 		.main .chat_message_pool .receive_message {
 			/*border: 1px solid green;*/
 			margin: 10px;
 			overflow: hidden;
 		}
-		
+
 		.main .chat_message_pool .send_message {
 			/*border: 1px solid green;*/
 			margin: 10px;
 			overflow: hidden;
 		}
-		
+
 		.main .chat_message_pool .send_message span{
 			float: right;
 			background: #b6e6b6;
 		}
-		
+
 		.main .input_text_area {
 			width: 98%;
 			height: 100px;
@@ -53,7 +53,7 @@
 			display: block;
 			margin:5px auto;
 		}
-		
+
 		.main .send_btn{
 			display: block;
 			width: 50%;
@@ -63,6 +63,11 @@
 			color: white;
 			padding: 5px;
 		}
+
+		/*表单*/
+		.login_form_wrap{display:none;background: #efeaea;position: absolute;width: 100%;height: 100%;top: 0;bottom: 0;}
+		.login_form_wrap form{text-align: center;margin: 20px;}
+		.login_form_wrap form label{text-align: right;display: inline-block;width: 60px;}
 	</style>
 </head>
 <body>
@@ -77,21 +82,38 @@
 		<div class="send_message">
 			<span>6789</span>
 		</div>
-	
+
 	</div>
-	
+
 	<div class="chat_input_wrap">
-		
+
 		<div>
 			<textarea class="input_text_area" name="" id="jsMessageInput"></textarea>
 		</div>
-		
+
 		<div>
 			<a href="javascript:void(0);" id="jsSendMsgBtn" class="send_btn">发布</a>
 		</div>
-	
+
 	</div>
 
+</div>
+
+<!--登陆表单-->
+<div class="login_form_wrap" id="jsLoginFormWrap">
+	<form action="" method="">
+		<div>
+			<label for="name">用户名:</label>
+			<input type="text" id="name" name="name">
+		</div>
+		<div>
+			<label for="password">密码:</label>
+			<input type="password" id="password" name="password">
+		</div>
+		<div>
+			<a href="javascript:void(0)" id="jsLoginBtn">登陆</a>
+		</div>
+	</form>
 </div>
 
 
@@ -215,10 +237,17 @@
 		        if(!this.checkCondition()){
 		            return;
 				}
+				this.initUserInfo();
 				this._bindDomEvents();
 
                 this.webSocketHandler = getWebsockHandler('ws://192.168.139.128:9502/',this);
             },
+			initUserInfo:function(){
+                this.userInfo.uid = localStorage.getItem('uid') ? localStorage.getItem('uid') : 1;
+                this.userInfo.name = '用户' + Date.now();
+                this.userInfo.token = localStorage.getItem('token') ? localStorage.getItem('token') : 'token_0.5623913076999942';
+                this.userInfo.isLogin = false;
+			},
             checkCondition:function(){
 		        //房间号检测
 				this.roomId = this.getQueryString('room');
@@ -236,19 +265,23 @@
 				    if(messageInputDom.value){
                         var messageDataInfo = {
                             content: messageInputDom.value,
-                            uid    : that.userInfo.uid,
-                            name   : that.userInfo.name,
-                            token  : that.userInfo.token,
                             roomId : that.roomId//给房间时，要传递房间号
                         };
                         sendResult = that.webSocketHandler.sendMessage('test/subtest/text/forRoom', messageDataInfo, {event: 'sendChatMsg'});
-                        sendResult && that.addMsgPop('send_message', {msg: messageInputDom.value, fromUser: ''});
+                        sendResult && that.addMsgPop('send_message', {content: messageInputDom.value, fromUser: ''});
 
                         //清空输入数据
                         messageInputDom.value = sendResult ? '' : messageInputDom.value;
 					}
 				};
-				
+
+                document.getElementById('jsLoginBtn').onclick = function () {
+                    var name = document.getElementById('name').value,
+                        password = document.getElementById('password').value,
+                        messageDataInfo = {name: name, password: password};
+                    sendResult = that.webSocketHandler.sendMessage('user/login', messageDataInfo, {event: 'login'});
+                };
+
 				//
                 document.title = '房间' + that.roomId;
 
@@ -258,6 +291,7 @@
 				name  : '用户' + Date.now(),
 				token : 'token_0.5623913076999942',
 				isLogin: false,
+                isAlreadyInterRoom :false,
 			},
             getQueryString:function (name) {
                 var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)", "i");
@@ -270,15 +304,15 @@
 				if(responData.code == 403 && responData.data.type == 'refreshToken'){//todo need refresh token
 				    return this.refreshToken(responData);
 				}else if(responData.code == 403){
-				    //todo need login
-					return;
+				    //展示登陆提示
+                    return this.showLoginForm();
 				}
                 var event = responData['rpData'] && responData['rpData']['event'] ? responData['rpData']['event'] : '';
-                event && this.dealEventList[event](responData, this);
+                event && this.dealEventList[event] && this.dealEventList[event](responData, this);
 			},
             addMsgPop        : function (type, dataInfo) {
                 console.log('输出数据',dataInfo);
-                var msg             = dataInfo.msg;
+                var msg             = dataInfo.content;
                 var fromUser        = dataInfo.fromUser;
                 var sayWord         = fromUser ? '说：' : '';
                 //展示消息
@@ -288,6 +322,15 @@
                 var msgPoolDom      = document.getElementById('jsChantMessagePool');
                 msgPoolDom.appendChild(newMsgDom);
                 msgPoolDom.scrollTop = msgPoolDom.scrollHeight;//滚动到底部
+            },
+			getLoginFormElem:function(){
+		        return document.getElementById('jsLoginFormWrap');
+			},
+			showLoginForm:function(){
+                this.getLoginFormElem().style.display = 'block';
+			},
+			hideLoginForm:function(){
+                this.getLoginFormElem().style.display = 'none';
             },
 			checkUserLogin : function(){
                 this.userInfo.isLogin = false;
@@ -301,6 +344,7 @@
 		        refreshToken:function(result, msgHandler){
 		            if(result.code == 200){
                         msgHandler.userInfo.token = result.data.token;//刷新本地token
+                        localStorage.setItem('token',result.data.token);
 						//重新发送前一条信息
 						var preRequestInfo = result.rpData.preRequestInfo;
                         msgHandler.webSocketHandler.sendMessage(preRequestInfo.route, preRequestInfo.data, preRequestInfo.rpData);
@@ -309,12 +353,41 @@
                 checkLogin: function (result, msgHandler) {
                     if (result.code == 200 && result.data.isLogin) {
                         msgHandler.userInfo.isLogin = true;
-                    } else {
+                        if(msgHandler.userInfo.isAlreadyInterRoom == false){
+                            //todo 发送进入房间的信息
+                            msgHandler.userInfo.isAlreadyInterRoom = true;
+                            msgHandler.webSocketHandler.sendMessage('room/interRoom', {roomId: msgHandler.roomId}, {event: 'interRoom'});
+						}
+                    } else {//如果未登陆则展示表单
                         msgHandler.userInfo.isLogin = false;
+                        msgHandler.showLoginForm();
                     }
                 },
                 sendChatMsg: function (result, msgHandler) {
                     console.log('sendChatMsg', '处理', result.data);
+                    //msgHandler.addMsgPop('receive_message', result.data);
+                },
+				login:function (result, msgHandler) {
+                    if (result.code == 200){
+                        console.log(result);
+                        localStorage.setItem('name', msgHandler.userInfo.name = result.data.name);
+                        localStorage.setItem('token', msgHandler.userInfo.token = result.data.token);
+                        localStorage.setItem('uid', msgHandler.userInfo.uid = result.data.id);
+
+                        msgHandler.webSocketHandler.sendMessage('room/interRoom', {roomId: msgHandler.roomId}, {event: 'interRoom'});
+                        msgHandler.hideLoginForm();
+                    }else {
+                        //提示用户名或密码错误
+						alert('用户名或密码错误')
+					}
+                },
+                interRoom:function (result, msgHandler) {//用户进入房间后
+
+                },
+                notifyUserInterRoom:function (result, msgHandler) {//有人进入该房间的通知
+                    msgHandler.addMsgPop('receive_message', result.data);
+                },
+				recieveChatMsg:function (result, msgHandler) {
                     msgHandler.addMsgPop('receive_message', result.data);
                 }
             },

@@ -14,8 +14,13 @@ use zxzgit\swd\WebSocketApp;
 class RoomService extends BaseService {
     static function fdRelativeToRoom($fd, $roomId) {
         $redisKey = RedisKeyDict::getHashRoomFdList($roomId);
-        $redis = new \Redis();
-        $redis->connect('127.0.0.1', 6379);
+        $redis = self::getRedis();
         $redis->zAdd($redisKey, time(), $fd);
+    }
+
+    static function removeDisconnectFdFromRoom($fd, $roomId){
+        $redisKey = RedisKeyDict::getHashRoomFdList($roomId);
+        $redis = self::getRedis();
+        $redis->zDelete($redisKey,$fd);
     }
 }

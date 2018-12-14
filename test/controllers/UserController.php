@@ -10,10 +10,15 @@ namespace zxzgit\swd\test\controllers;
 use zxzgit\swd\test\service\UserService;
 
 class UserController extends BaseController {
-    
+    public $authActionList = ['checkLogin'];
     public function actionLogin() {
-        $result = UserService::doLogin($this->frame->fd, $this->data);
-        return $this->pushMsg(['hello', 'world']);
+        $userInfo = UserService::doLogin($this->frame->fd, $this->data);
+        if ($userInfo) {
+            unset($userInfo['password']);
+            unset($userInfo['token_expire']);
+            return $this->pushMsg($userInfo);
+        }
+        return $this->pushMsg(['msg' => '登陆失败'], 401);
     }
     
     /**

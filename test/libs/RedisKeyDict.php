@@ -28,7 +28,7 @@ class RedisKeyDict {
      * @return string
      */
     static function getHashFdToUser() {
-        return self::getFormat("fdToUid:zSet");
+        return self::getFormat("fdToUid:hash");
     }
     
     /**
